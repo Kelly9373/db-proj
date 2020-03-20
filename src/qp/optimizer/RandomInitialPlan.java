@@ -23,6 +23,7 @@ public class RandomInitialPlan {
     ArrayList<Condition> joinlist;        // List of join conditions
     ArrayList<Attribute> groupbylist;
     int numJoin;            // Number of joins in this query
+    int limit;              // Number of rows to display
     HashMap<String, Operator> tab_op_hash;  // Table name to the Operator
     Operator root;          // Root of the query plan tree
 
@@ -34,6 +35,7 @@ public class RandomInitialPlan {
         joinlist = sqlquery.getJoinList();
         groupbylist = sqlquery.getGroupByList();
         numJoin = joinlist.size();
+        limit = sqlquery.getLimit();
     }
 
     /**
@@ -62,7 +64,6 @@ public class RandomInitialPlan {
             System.err.println("Orderby is not implemented.");
             System.exit(1);
         }
-
         tab_op_hash = new HashMap<>();
         createScanOp();
         createSelectOp();
@@ -70,7 +71,7 @@ public class RandomInitialPlan {
             createJoinOp();
         }
         createProjectOp();
-
+        root.setLimit(limit);
         return root;
     }
 

@@ -32,7 +32,10 @@ STRING_LITERAL=\"{CHAR}*\"
  
 %%
 
-
+<YYINITIAL,NEGATE> LIMIT {
+  yybegin(YYINITIAL);
+  return new Symbol(sym.LIMIT,yyline,yychar,new TokenValue(yytext()));
+}
 
 <YYINITIAL,NEGATE> SELECT {
   yybegin(YYINITIAL);

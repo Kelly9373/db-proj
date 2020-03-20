@@ -172,11 +172,28 @@ public class QueryMain {
         numAtts = schema.getNumCols();
         printSchema(schema);
 
+        int limit = root.getLimit();
+        boolean withLimit = false;
+        boolean endPrinting = false;
+        if (limit >= 0) {
+            withLimit = true;
+        }
+
         /** Print each tuple in the result **/
         Batch resultbatch;
         while ((resultbatch = root.next()) != null) {
             for (int i = 0; i < resultbatch.size(); ++i) {
                 printTuple(resultbatch.get(i));
+                if (withLimit && limit > 0) {
+                    limit--;
+                    if (limit == 0) {
+                        endPrinting = true;
+                        break;
+                    }
+                }
+            }
+            if (endPrinting) {
+                break;
             }
         }
         root.close();

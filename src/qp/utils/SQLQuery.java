@@ -5,6 +5,7 @@
 package qp.utils;
 
 import java.util.ArrayList;
+import qp.parser.TokenValue;
 
 public class SQLQuery {
 
@@ -20,6 +21,7 @@ public class SQLQuery {
     ArrayList<Condition> joinList;       // List of join predicates
     ArrayList<Attribute> groupbyList;    // List of attibutes in groupby clause
     ArrayList<Attribute> orderbyList;    // List of attibutes in orderby clause
+    int limit;                           // Number of rows to display
 
     boolean isDistinct = false;          // Whether distinct key word appeared in select clause
 
@@ -30,6 +32,7 @@ public class SQLQuery {
         groupbyList = new ArrayList<>();
         orderbyList = new ArrayList<>();
         joinList = new ArrayList<>();
+        limit = -1;
         splitConditionList(conditionList);
     }
 
@@ -43,6 +46,7 @@ public class SQLQuery {
         groupbyList = new ArrayList<>();
         orderbyList = new ArrayList<>();
         selectionList = new ArrayList<>();
+        limit = -1;
     }
 
     /**
@@ -67,6 +71,17 @@ public class SQLQuery {
             }
         }
     }
+
+    public void setLimit(TokenValue limitToken) {
+        try {
+            limit = limitToken.toInteger();
+        } catch (NumberFormatException nfe) {
+            System.err.println("Limit: not an integer");
+            System.exit(1);
+        }
+    }
+
+    public int getLimit() { return limit; }
 
     public void setIsDistinct(boolean flag) {
         isDistinct = flag;
