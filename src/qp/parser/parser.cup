@@ -93,6 +93,28 @@ finalquery ::= sqlquery:s
 			parser.query = s;
             RESULT = s;
         :}
+        |  sqlquery:s ORDERBY attlist:a LIMIT STRINGLIT:b
+        {:
+            s.setOrderByList(a);
+            s.setLimit(b);
+            parser.query = s;
+            RESULT = s;
+        :}
+        |  sqlquery:s ORDERBY attlist:a OFFSET STRINGLIT:b
+        {:
+            s.setOrderByList(a);
+            s.setOffset(b);
+            parser.query = s;
+            RESULT = s;
+        :}
+        |  sqlquery:s ORDERBY attlist:a LIMIT STRINGLIT:b OFFSET STRINGLIT:c
+        {:
+            s.setOrderByList(a);
+            s.setLimit(b);
+            s.setOffset(c);
+            parser.query = s;
+            RESULT = s;
+        :}
 		;
 
 sqlquery ::= SELECT attlist:a FROM tablelist:t WHERE conditionlist:c
