@@ -24,6 +24,7 @@ public class RandomInitialPlan {
     ArrayList<Attribute> groupbylist;
     int numJoin;            // Number of joins in this query
     int limit;              // Number of rows to display
+    int offset;             // Number of rows to skip
     HashMap<String, Operator> tab_op_hash;  // Table name to the Operator
     Operator root;          // Root of the query plan tree
 
@@ -36,6 +37,7 @@ public class RandomInitialPlan {
         groupbylist = sqlquery.getGroupByList();
         numJoin = joinlist.size();
         limit = sqlquery.getLimit();
+        offset = sqlquery.getOffset();
     }
 
     /**
@@ -72,6 +74,7 @@ public class RandomInitialPlan {
         }
         createProjectOp();
         root.setLimit(limit);
+        root.setOffset(offset);
         return root;
     }
 

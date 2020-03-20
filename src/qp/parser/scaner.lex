@@ -37,6 +37,11 @@ STRING_LITERAL=\"{CHAR}*\"
   return new Symbol(sym.LIMIT,yyline,yychar,new TokenValue(yytext()));
 }
 
+<YYINITIAL,NEGATE> OFFSET {
+  yybegin(YYINITIAL);
+  return new Symbol(sym.OFFSET,yyline,yychar,new TokenValue(yytext()));
+}
+
 <YYINITIAL,NEGATE> SELECT {
   yybegin(YYINITIAL);
   return new Symbol(sym.SELECT,yyline,yychar,new TokenValue(yytext()));

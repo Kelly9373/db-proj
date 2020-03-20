@@ -36,7 +36,7 @@ action code {:
 terminal TokenValue ID;
 terminal COMMA,LEFTBRACKET,RIGHTBRACKET,DOT,STAR;
 terminal LESSTHAN,GREATERTHAN,LTOE,GTOE,EQUAL,NOTEQUAL;
-terminal SELECT,FROM,WHERE,GROUPBY,ORDERBY,MAX,MIN,SUM,COUNT,AVG,DISTINCT,LIMIT;
+terminal SELECT,FROM,WHERE,GROUPBY,ORDERBY,MAX,MIN,SUM,COUNT,AVG,DISTINCT,LIMIT,OFFSET;
 terminal TokenValue STRINGLIT;
 
 /* Non terminals */
@@ -77,6 +77,19 @@ finalquery ::= sqlquery:s
 		| sqlquery:s LIMIT STRINGLIT:a
         {:
             s.setLimit(a);
+			parser.query = s;
+            RESULT = s;
+        :}
+		| sqlquery:s OFFSET STRINGLIT:a
+        {:
+            s.setOffset(a);
+			parser.query = s;
+            RESULT = s;
+        :}
+		| sqlquery:s LIMIT STRINGLIT:a OFFSET STRINGLIT:b
+        {:
+            s.setLimit(a);
+            s.setOffset(b);
 			parser.query = s;
             RESULT = s;
         :}
