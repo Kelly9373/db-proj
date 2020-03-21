@@ -23,6 +23,8 @@ public class RandomInitialPlan {
     ArrayList<Condition> joinlist;        // List of join conditions
     ArrayList<Attribute> groupbylist;
     int numJoin;            // Number of joins in this query
+    int limit;              // Number of rows to display
+    int offset;             // Number of rows to skip
     HashMap<String, Operator> tab_op_hash;  // Table name to the Operator
     Operator root;          // Root of the query plan tree
 
@@ -34,6 +36,8 @@ public class RandomInitialPlan {
         joinlist = sqlquery.getJoinList();
         groupbylist = sqlquery.getGroupByList();
         numJoin = joinlist.size();
+        limit = sqlquery.getLimit();
+        offset = sqlquery.getOffset();
     }
 
     /**
@@ -62,7 +66,6 @@ public class RandomInitialPlan {
             System.err.println("Orderby is not implemented.");
             System.exit(1);
         }
-
         tab_op_hash = new HashMap<>();
         createScanOp();
         createSelectOp();
@@ -70,7 +73,8 @@ public class RandomInitialPlan {
             createJoinOp();
         }
         createProjectOp();
-
+        root.setLimit(limit);
+        root.setOffset(offset);
         return root;
     }
 
@@ -89,7 +93,7 @@ public class RandomInitialPlan {
             /** Read the schema of the table from tablename.md file
              ** md stands for metadata
              **/
-            String filename = tabname + ".md";
+            String filename = "testcases\\" + tabname + ".md";
             try {
                 ObjectInputStream _if = new ObjectInputStream(new FileInputStream(filename));
                 Schema schm = (Schema) _if.readObject();
