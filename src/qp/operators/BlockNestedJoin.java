@@ -112,9 +112,9 @@ public class BlockNestedJoin extends Join {
                     return outbatch;
                 }
 
-                for(i = 1; i < leftbatches.length; i++){
+                for (i = 1; i < leftbatches.length; i++) {
                     leftbatches[i] = left.next();
-                    if(leftbatches[i] == null){
+                    if (leftbatches[i] == null) {
                         break;
                     }
                 }
@@ -130,8 +130,8 @@ public class BlockNestedJoin extends Join {
                 }
             }
             int leftTupleNum = leftbatches[0].size();
-            for(i = 1; i < leftbatches.length; i++){
-                if(leftbatches[i] == null){
+            for (i = 1; i < leftbatches.length; i++) {
+                if (leftbatches[i] == null) {
                     break;
                 }
                 leftTupleNum += leftbatches[i].size();
@@ -143,8 +143,8 @@ public class BlockNestedJoin extends Join {
                         rightbatch = (Batch) in.readObject();
                     }
                     for (i = lcurs; i < leftTupleNum; ++i) {
-                        int leftBatchIndex = i/leftbatches[0].size();
-                        int leftTupleIndex = i%leftbatches[0].size();
+                        int leftBatchIndex = i / leftbatches[0].size();
+                        int leftTupleIndex = i % leftbatches[0].size();
                         Tuple lefttuple = leftbatches[leftBatchIndex].get(leftTupleIndex);
 
                         for (j = rcurs; j < rightbatch.size(); ++j) {
