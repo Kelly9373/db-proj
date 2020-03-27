@@ -13,7 +13,6 @@ public class OpType {
     public static final int DISTINCT = 4;
     public static final int GROUPBY = 5;
     public static final int SORT = 6;
-
-
+    public static final int SET = 7;
 
 }

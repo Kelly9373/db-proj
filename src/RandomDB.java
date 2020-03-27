@@ -98,7 +98,10 @@ public class RandomDB {
                 } else {
                     typeofkey = -1;
                 }
-
+                if (tblname.contains("\\")) {
+                    String table[] = tblname.split("\\\\");
+                    tblname = table[table.length - 1];
+                }
                 int numbytes = Integer.parseInt(tokenizer.nextToken());
                 if (typeofkey != -1) {
                     attr = new Attribute(tblname, colname, type);
