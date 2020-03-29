@@ -22,4 +22,13 @@ public class RandNumb {
             return false;
     }
 
+    /**
+     * Generates a random number
+     *
+     * @return the random number generated.
+     */
+    public static double randDouble() {
+        return Math.random();
+    }
+
 }

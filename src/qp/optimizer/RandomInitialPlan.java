@@ -4,8 +4,20 @@
 
 package qp.optimizer;
 
-import qp.operators.*;
-import qp.utils.*;
+import qp.operators.Distinct;
+import qp.operators.GroupBy;
+import qp.operators.Join;
+import qp.operators.JoinType;
+import qp.operators.OpType;
+import qp.operators.Operator;
+import qp.operators.Project;
+import qp.operators.Scan;
+import qp.operators.Select;
+import qp.utils.Attribute;
+import qp.utils.Condition;
+import qp.utils.RandNumb;
+import qp.utils.SQLQuery;
+import qp.utils.Schema;
 
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
@@ -49,6 +61,7 @@ public class RandomInitialPlan {
 
     /**
      * prepare initial plan for the query
+     * @return the root of the query plan tree
      **/
     public Operator prepareInitialPlan() {
 
@@ -73,6 +86,9 @@ public class RandomInitialPlan {
             createJoinOp();
         }
         createProjectOp();
+        createGroupByOp();
+        createDistinctOp();
+
         root.setLimit(limit);
         root.setOffset(offset);
         return root;
@@ -186,6 +202,9 @@ public class RandomInitialPlan {
             root = jn;
     }
 
+    /**
+     * create project operators
+     **/
     public void createProjectOp() {
         Operator base = root;
         if (projectlist == null)
@@ -194,6 +213,30 @@ public class RandomInitialPlan {
             root = new Project(base, projectlist, OpType.PROJECT);
             Schema newSchema = base.getSchema().subSchema(projectlist);
             root.setSchema(newSchema);
+        }
+    }
+
+    /**
+     * Creates a distinct operator.
+     */
+    private void createDistinctOp() {
+        if (!sqlquery.isDistinct()) {
+            return;
+        }
+        Distinct operator = new Distinct(root, sqlquery.getProjectList());
+        operator.setSchema(root.getSchema());
+        root = operator;
+    }
+
+    /**
+     * Creates a groupby operator.
+     */
+    private void createGroupByOp() {
+        ArrayList<Attribute> groupbyList = sqlquery.getGroupByList();
+        if (groupbyList != null && !groupbyList.isEmpty()) {
+            GroupBy operator = new GroupBy(root, groupbyList);
+            operator.setSchema(root.getSchema());
+            root = operator;
         }
     }
 

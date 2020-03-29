@@ -5,7 +5,15 @@
 
 package qp.optimizer;
 
-import qp.operators.*;
+import qp.operators.Distinct;
+import qp.operators.GroupBy;
+import qp.operators.Join;
+import qp.operators.JoinType;
+import qp.operators.OpType;
+import qp.operators.Operator;
+import qp.operators.Project;
+import qp.operators.Scan;
+import qp.operators.Select;
 import qp.utils.Attribute;
 import qp.utils.Batch;
 import qp.utils.Condition;
@@ -19,8 +27,8 @@ import java.util.StringTokenizer;
 
 public class PlanCost {
 
-    long cost;
-    long numtuple;
+    int cost;
+    int numtuple;
 
     /**
      * If buffers are not enough for a selected join
@@ -33,9 +41,11 @@ public class PlanCost {
      * Hashtable stores mapping from Attribute name to
      * * number of distinct values of that attribute
      **/
-    HashMap<Attribute, Long> ht;
+    HashMap<Attribute, Integer> ht;
 
-
+    /**
+     * PlanCost constructor
+     */
     public PlanCost() {
         ht = new HashMap<>();
         cost = 0;
@@ -44,15 +54,15 @@ public class PlanCost {
     /**
      * Returns the cost of the plan
      **/
-    public long getCost(Operator root) {
-        cost = 0;
+    public int getCost(Operator root) {
+        //cost = 0;
         isFeasible = true;
         numtuple = calculateCost(root);
         if (isFeasible) {
             return cost;
         } else {
-            System.out.println("notFeasible");
-            return Long.MAX_VALUE;
+            //System.out.println("notFeasible");
+            return Integer.MAX_VALUE;
         }
     }
 
@@ -67,7 +77,7 @@ public class PlanCost {
     /**
      * Returns number of tuples in the root
      **/
-    protected long calculateCost(Operator node) {
+    protected int calculateCost(Operator node) {
         if (node.getOpType() == OpType.JOIN) {
             return getStatistics((Join) node);
         } else if (node.getOpType() == OpType.SELECT) {
@@ -76,36 +86,64 @@ public class PlanCost {
             return getStatistics((Project) node);
         } else if (node.getOpType() == OpType.SCAN) {
             return getStatistics((Scan) node);
+        } else if (node.getOpType() == OpType.DISTINCT) {
+            return getStatistics((Distinct) node);
+        } else if (node.getOpType() == OpType.GROUPBY) {
+            return getStatistics((GroupBy) node);
         }
-        System.out.println("operator is not supported");
-        isFeasible = false;
-        return 0;
+        //System.out.println("operator is not supported");
+        //isFeasible = false;
+        return -1;
     }
 
     /**
      * Projection will not change any statistics
      * * No cost involved as done on the fly
      **/
-    protected long getStatistics(Project node) {
+    protected int getStatistics(Project node) {
         return calculateCost(node.getBase());
     }
 
     /**
+     * Get the cost of a distinct node.
+     *
+     * @param node the plan for Distinct Operator.
+     * @return tuple number after DISTINCT.
+     */
+    private int getStatistics(Distinct node) {
+        return calculate(node.getBase());
+    }
+
+    /**
+     * Get the cost of a GROUPBY node.
+     *
+     * @param node the plan for GROUP_BY Operator.
+     * @return tuple number after GROUPBY.
+     */
+    private int getStatistics(GroupBy node) {
+        return calculate(node.getBase());
+    }
+
+    /**
      * Calculates the statistics and cost of join operation
+     * @param node is the plan for Join Operator.
+     * @return the cost of the plan.
      **/
-    protected long getStatistics(Join node) {
-        long lefttuples = calculateCost(node.getLeft());
-        long righttuples = calculateCost(node.getRight());
+    protected int getStatistics(Join node) {
+        int lefttuples = calculateCost(node.getLeft());
+        int righttuples = calculateCost(node.getRight());
 
         if (!isFeasible) {
             return 0;
         }
 
+        Condition condition = node.getCondition();
         Schema leftschema = node.getLeft().getSchema();
         Schema rightschema = node.getRight().getSchema();
 
-        /** Get size of the tuple in output & correspondigly calculate
-         ** buffer capacity, i.e., number of tuples per page **/
+        ///** Get size of the tuple in output & correspondigly calculate
+        // ** buffer capacity, i.e., number of tuples per page **/
+        /*
         long tuplesize = node.getSchema().getTupleSize();
         long outcapacity = Math.max(1, Batch.getPageSize() / tuplesize);
         long leftuplesize = leftschema.getTupleSize();
@@ -122,9 +160,10 @@ public class PlanCost {
             int leftattrind = leftschema.indexOf(leftjoinAttr);
             int rightattrind = rightschema.indexOf(rightjoinAttr);
             leftjoinAttr = leftschema.getAttribute(leftattrind);
-            rightjoinAttr = rightschema.getAttribute(rightattrind);
+            rightjoinAttr = rightschema.getAttribute(rightattrind);*/
 
-            /** Number of distinct values of left and right join attribute **/
+            ///** Number of distinct values of left and right join attribute **/
+            /*
             long leftattrdistn = ht.get(leftjoinAttr);
             long rightattrdistn = ht.get(rightjoinAttr);
             tuples /= (double) Math.max(leftattrdistn, rightattrdistn);
@@ -132,13 +171,37 @@ public class PlanCost {
             ht.put(leftjoinAttr, mindistinct);
             ht.put(rightjoinAttr, mindistinct);
         }
-        long outtuples = (long) Math.ceil(tuples);
+        long outtuples = (long) Math.ceil(tuples);*/
+
+        // lhs
+        Attribute leftJoinAttribute = condition.getLhs();
+        int leftAttributeIndex = leftschema.indexOf(leftJoinAttribute);
+        leftJoinAttribute = leftschema.getAttribute(leftAttributeIndex);
+        int leftTupleSize = leftschema.getTupleSize();
+        int leftCapacity = Batch.getPageSize() / leftTupleSize;
+        int leftPages = (int) Math.ceil(1.0 * lefttuples / leftCapacity);
+        int leftAttributeDistinctNum = ht.get(leftJoinAttribute);
+
+        // rhs
+        Attribute rightJoinAttribute = (Attribute) condition.getRhs();
+        int rightAttributeIndex = rightschema.indexOf(rightJoinAttribute);
+        rightJoinAttribute = rightschema.getAttribute(rightAttributeIndex);
+        int rightTupleSize = rightschema.getTupleSize();
+        int rightCapacity = Batch.getPageSize() / rightTupleSize;
+        int rightPages = (int) Math.ceil(1.0 * righttuples / rightCapacity);
+        int rightAttributeDistinctNum = ht.get(rightJoinAttribute);
+
+        int outtuples = (int) Math.ceil(1.0 * lefttuples * righttuples / Math.max(leftAttributeDistinctNum, rightAttributeDistinctNum));
+        int minDistinct = Math.min(leftAttributeDistinctNum, rightAttributeDistinctNum);
+        ht.put(leftJoinAttribute, minDistinct);
+        ht.put(rightJoinAttribute, minDistinct);
 
         /** Calculate the cost of the operation **/
         int joinType = node.getJoinType();
-        long numbuff = BufferManager.getBuffersPerJoin();
-        long joincost;
+        int numbuff = BufferManager.getBuffersPerJoin();
+        int joincost;
 
+        /*
         switch (joinType) {
             case JoinType.NESTEDJOIN:
                 joincost = leftpages * rightpages;
@@ -146,7 +209,35 @@ public class PlanCost {
             default:
                 System.out.println("join type is not supported");
                 return 0;
+        }*/
+
+        switch (joinType) {
+            case JoinType.NESTEDJOIN:
+                joincost = leftPages * rightPages;
+                break;
+            case JoinType.BLOCKNESTED:
+                int leftBlocks = (int) Math.ceil(leftPages / (numbuff - 2));
+                joincost = leftBlocks * rightPages;
+                break;
+            case JoinType.SORTMERGE:
+                int numOfLeftSortedRuns = (int) Math.ceil(1.0 * leftPages / numbuff);
+                int numOfLeftPasses = (int) Math.ceil(Math.log(numOfLeftSortedRuns) / Math.log(numbuff - 1)) + 1;
+                int leftSortCost = 2 * leftPages * numOfLeftPasses;
+
+                int numOfRightSortedRuns = (int) Math.ceil(1.0 * rightPages / numbuff);
+                int numOfRightPasses = (int) Math.ceil(Math.log(numOfRightSortedRuns) / Math.log(numbuff - 1)) + 1;
+                int rightSortCost = 2 * leftPages * numOfRightPasses;
+
+                joincost = leftSortCost + rightSortCost + rightPages;
+                break;
+            case JoinType.HASHJOIN:
+                joincost = 0;
+                break;
+            default:
+                joincost = 0;
+                break;
         }
+
         cost = cost + joincost;
 
         return outtuples;
@@ -156,12 +247,14 @@ public class PlanCost {
      * Find number of incoming tuples, Using the selectivity find # of output tuples
      * * And statistics about the attributes
      * * Selection is performed on the fly, so no cost involved
+     * @param node the plan for Select Operator.
+     * @return the cost of the plan.
      **/
-    protected long getStatistics(Select node) {
-        long intuples = calculateCost(node.getBase());
+    protected int getStatistics(Select node) {
+        int intuples = calculateCost(node.getBase());
         if (!isFeasible) {
-            System.out.println("notFeasible");
-            return Long.MAX_VALUE;
+            //System.out.println("notFeasible");
+            return Integer.MAX_VALUE;
         }
 
         Condition con = node.getCondition();
@@ -172,18 +265,16 @@ public class PlanCost {
         int exprtype = con.getExprType();
 
         /** Get number of distinct values of selection attributes **/
-        long numdistinct = intuples;
-        Long temp = ht.get(fullattr);
-        numdistinct = temp.longValue();
+        int numdistinct = ht.get(fullattr);
+        int outtuples;
 
-        long outtuples;
         /** Calculate the number of tuples in result **/
         if (exprtype == Condition.EQUAL) {
-            outtuples = (long) Math.ceil((double) intuples / (double) numdistinct);
+            outtuples = (int) Math.ceil(1.0 * intuples / numdistinct);
         } else if (exprtype == Condition.NOTEQUAL) {
-            outtuples = (long) Math.ceil(intuples - ((double) intuples / (double) numdistinct));
+            outtuples = (int) Math.ceil(intuples - 1.0 * intuples / numdistinct);
         } else {
-            outtuples = (long) Math.ceil(0.5 * intuples);
+            outtuples = (int) Math.ceil(0.5 * intuples);
         }
 
         /** Modify the number of distinct values of each attribute
@@ -192,8 +283,8 @@ public class PlanCost {
          **/
         for (int i = 0; i < schema.getNumCols(); ++i) {
             Attribute attri = schema.getAttribute(i);
-            long oldvalue = ht.get(attri);
-            long newvalue = (long) Math.ceil(((double) outtuples / (double) intuples) * oldvalue);
+            int oldvalue = ht.get(attri);
+            int newvalue = (int) Math.ceil(1.0 * outtuples / intuples * oldvalue);
             ht.put(attri, outtuples);
         }
         return outtuples;
@@ -204,8 +295,10 @@ public class PlanCost {
      * * about that table;
      * * This table contains number of tuples in the table
      * * number of distinct values of each attribute
+     * @param node the plan for Scan Operator.
+     * @return the cost of the plan.
      **/
-    protected long getStatistics(Scan node) {
+    protected int getStatistics(Scan node) {
         String tablename = node.getTabName();
         String filename = "testcases\\" + tablename + ".stat";
         Schema schema = node.getSchema();
@@ -232,7 +325,8 @@ public class PlanCost {
             System.exit(1);
         }
         String temp = tokenizer.nextToken();
-        long numtuples = Long.parseLong(temp);
+        int numtuples = Integer.parseInt(temp);
+
         try {
             line = in.readLine();
         } catch (IOException io) {
@@ -247,14 +341,14 @@ public class PlanCost {
         for (int i = 0; i < numAttr; ++i) {
             Attribute attr = schema.getAttribute(i);
             temp = tokenizer.nextToken();
-            Long distinctValues = Long.valueOf(temp);
+            int distinctValues = Integer.valueOf(temp);
             ht.put(attr, distinctValues);
         }
 
         /** Number of tuples per page**/
-        long tuplesize = schema.getTupleSize();
-        long pagesize = Math.max(Batch.getPageSize() / tuplesize, 1);
-        long numpages = (long) Math.ceil((double) numtuples / (double) pagesize);
+        int tuplesize = schema.getTupleSize();
+        int pagesize = Math.max(Batch.getPageSize() / tuplesize, 1);
+        int numpages = (int) Math.ceil(1.0 * numtuples / pagesize);
 
         cost = cost + numpages;
 
@@ -265,6 +359,22 @@ public class PlanCost {
             System.exit(1);
         }
         return numtuples;
+    }
+
+    private int calculate(Operator base) {
+        // Calculates the input statistics.
+        int inTupleNum = calculateCost(base);
+        int inCapacity = Batch.getPageSize() / base.getSchema().getTupleSize();
+        int inPageNum = (int) Math.ceil(1.0 * inTupleNum / inCapacity);
+
+        // Calculates the external sort cost.
+        int bufferNum = BufferManager.getBuffersPerJoin();
+        int numOfSortedRuns = (int) Math.ceil(1.0 * inPageNum / bufferNum);
+        int numOfPasses = (int) Math.ceil(Math.log(numOfSortedRuns) / Math.log(bufferNum - 1)) + 1;
+
+        cost += 2 * inPageNum * numOfPasses;
+
+        return inTupleNum;
     }
 
 }

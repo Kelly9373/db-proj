@@ -4,7 +4,19 @@
 
 package qp.optimizer;
 
-import qp.operators.*;
+import qp.operators.BlockNestedJoin;
+import qp.operators.Debug;
+import qp.operators.Distinct;
+import qp.operators.GroupBy;
+import qp.operators.Join;
+import qp.operators.JoinType;
+import qp.operators.OpType;
+import qp.operators.Operator;
+import qp.operators.NestedJoin;
+import qp.operators.Project;
+import qp.operators.Select;
+import qp.operators.ExternalSort;
+import qp.operators.SortMergeJoin;
 import qp.utils.Attribute;
 import qp.utils.Condition;
 import qp.utils.RandNumb;
@@ -12,7 +24,7 @@ import qp.utils.SQLQuery;
 
 import java.util.ArrayList;
 
-public class RandomOptimizer {
+public abstract class RandomOptimizer {
 
     /**
      * enumeration of different ways to find the neighbor plan
@@ -38,16 +50,23 @@ public class RandomOptimizer {
     }
 
     /**
+     * Will be used in iterative improvement and simulated annealing classes
+     *
+     * @return optimal plan
+     */
+    public abstract Operator getOptimizedPlan();
+
+    /**
      * After finding a choice of method for each operator
      * * prepare an execution plan by replacing the methods with
      * * corresponding join operator implementation
      **/
     public static Operator makeExecPlan(Operator node) {
+        int numbuff = BufferManager.getBuffersPerJoin();
         if (node.getOpType() == OpType.JOIN) {
             Operator left = makeExecPlan(((Join) node).getLeft());
             Operator right = makeExecPlan(((Join) node).getRight());
             int joinType = ((Join) node).getJoinType();
-            int numbuff = BufferManager.getBuffersPerJoin();
             switch (joinType) {
                 case JoinType.NESTEDJOIN:
                     NestedJoin nj = new NestedJoin((Join) node);
@@ -55,6 +74,25 @@ public class RandomOptimizer {
                     nj.setRight(right);
                     nj.setNumBuff(numbuff);
                     return nj;
+                case JoinType.BLOCKNESTED:
+                    BlockNestedJoin bnj = new BlockNestedJoin((Join) node);
+                    bnj.setLeft(left);
+                    bnj.setRight(right);
+                    bnj.setNumBuff(numbuff);
+                    return bnj;
+                case JoinType.SORTMERGE:
+                    SortMergeJoin smj = new SortMergeJoin((Join) node);
+
+                    ArrayList<Attribute> leftAttrs = new ArrayList<>();
+                    leftAttrs.add(smj.getCondition().getLhs());
+                    smj.setLeft(new ExternalSort(left, leftAttrs, numbuff));
+
+                    ArrayList<Attribute> rightAttrs = new ArrayList<>();
+                    rightAttrs.add((Attribute) smj.getCondition().getRhs());
+                    smj.setRight(new ExternalSort(right, rightAttrs, numbuff));
+
+                    smj.setNumBuff(numbuff);
+                    return smj;
                 default:
                     return node;
             }
@@ -65,6 +103,18 @@ public class RandomOptimizer {
         } else if (node.getOpType() == OpType.PROJECT) {
             Operator base = makeExecPlan(((Project) node).getBase());
             ((Project) node).setBase(base);
+            return node;
+        } else if (node.getOpType() == OpType.DISTINCT) {
+            Distinct operator = (Distinct) node;
+            operator.setNumBuff(numbuff);
+            Operator base = makeExecPlan(operator.getBase());
+            operator.setBase(base);
+            return node;
+        } else if (node.getOpType() == OpType.GROUPBY) {
+            GroupBy operator = (GroupBy) node;
+            operator.setNumBuff(numbuff);
+            Operator base = makeExecPlan(operator.getBase());
+            operator.setBase(base);
             return node;
         } else {
             return node;
@@ -94,17 +144,20 @@ public class RandomOptimizer {
         return neighbor;
     }
 
-    /**
-     * Implementation of Iterative Improvement Algorithm for Randomized optimization of Query Plan
-     **/
+    ///**
+     //* Implementation of Iterative Improvement Algorithm for Randomized optimization of Query Plan
+     //**/
+    /*
     public Operator getOptimizedPlan() {
-        /** get an initial plan for the given sql query **/
+        ///** get an initial plan for the given sql query **/
+    /*
         RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
         numJoin = rip.getNumJoins();
         long MINCOST = Long.MAX_VALUE;
         Operator finalPlan = null;
 
-        /** NUMITER is number of times random restart **/
+        ///** NUMITER is number of times random restart **/
+    /*
         int NUMITER;
         if (numJoin != 0) {
             NUMITER = 2 * numJoin;
@@ -112,10 +165,11 @@ public class RandomOptimizer {
             NUMITER = 1;
         }
 
-        /** Randomly restart the gradient descent until
-         *  the maximum specified number of random restarts (NUMITER)
-         *  has satisfied
-         **/
+        ///** Randomly restart the gradient descent until
+         //*  the maximum specified number of random restarts (NUMITER)
+         //*  has satisfied
+         //**/
+    /*
         for (int j = 0; j < NUMITER; ++j) {
             Operator initPlan = rip.prepareInitialPlan();
             modifySchema(initPlan);
@@ -140,10 +194,11 @@ public class RandomOptimizer {
                     minNeighborCost = pc.getCost(minNeighbor);
                     System.out.println("  " + minNeighborCost);
 
-                    /** In this loop we consider from the
-                     ** possible neighbors (randomly selected)
-                     ** and take the minimum among for next step
-                     **/
+                    ///** In this loop we consider from the
+                     //** possible neighbors (randomly selected)
+                     //** and take the minimum among for next step
+                     //**/
+    /*
                     for (int i = 1; i < 2 * numJoin; ++i) {
                         initPlanCopy = (Operator) initPlan.clone();
                         Operator neighbor = getNeighbor(initPlanCopy);
@@ -187,7 +242,7 @@ public class RandomOptimizer {
         Debug.PPrint(finalPlan);
         System.out.println("  " + MINCOST);
         return finalPlan;
-    }
+    }*/
 
     /**
      * Selects a random method choice for join wiht number joinNum
@@ -362,6 +417,10 @@ public class RandomOptimizer {
             return findNodeAt(((Select) node).getBase(), joinNum);
         } else if (node.getOpType() == OpType.PROJECT) {
             return findNodeAt(((Project) node).getBase(), joinNum);
+        } else if (node.getOpType() == OpType.DISTINCT) {
+            return findNodeAt(((Distinct) node).getBase(), joinNum);
+        } else if (node.getOpType() == OpType.GROUPBY) {
+            return findNodeAt(((GroupBy) node).getBase(), joinNum);
         } else {
             return null;
         }
@@ -370,7 +429,7 @@ public class RandomOptimizer {
     /**
      * Modifies the schema of operators which are modified due to selecing an alternative neighbor plan
      **/
-    private void modifySchema(Operator node) {
+    static void modifySchema(Operator node) {
         if (node.getOpType() == OpType.JOIN) {
             Operator left = ((Join) node).getLeft();
             Operator right = ((Join) node).getRight();
@@ -386,6 +445,41 @@ public class RandomOptimizer {
             modifySchema(base);
             ArrayList attrlist = ((Project) node).getProjAttr();
             node.setSchema(base.getSchema().subSchema(attrlist));
+        } else if (node.getOpType() == OpType.DISTINCT) {
+            Operator base = ((Distinct) node).getBase();
+            modifySchema(base);
+            node.setSchema(base.getSchema());
+        } else if (node.getOpType() == OpType.GROUPBY) {
+            Operator base = ((GroupBy) node).getBase();
+            modifySchema(base);
+            node.setSchema(base.getSchema());
         }
+    }
+
+    /**
+     * Prints out the information
+     *
+     * @param name name of the plan.
+     * @param plan the execution plan.
+     * @return the cost of the execution plan.
+     */
+    int printPlanCost(String name, Operator plan) {
+        PlanCost planCost = new PlanCost();
+        int cost = planCost.getCost(plan);
+        printPlanCost(name, plan, cost);
+        return cost;
+    }
+
+    /**
+     * Prints out the information
+     *
+     * @param name name of the plan.
+     * @param plan the execution plan.
+     * @param cost the cost of the execution plan.
+     */
+    void printPlanCost(String name, Operator plan, int cost) {
+        System.out.println("---------------------------" + name + "---------------------------");
+        Debug.PPrint(plan);
+        System.out.println(" " + cost);
     }
 }

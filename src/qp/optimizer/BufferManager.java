@@ -11,12 +11,25 @@ public class BufferManager {
 
     static int buffPerJoin;
 
+    /**
+     * BufferManager Constructor
+     * @param numBuffer total number of buffers
+     * @param numJoin total number of Join operators
+     */
     public BufferManager(int numBuffer, int numJoin) {
         this.numBuffer = numBuffer;
         this.numJoin = numJoin;
-        buffPerJoin = numBuffer / numJoin;
+        if (numJoin == 0) {
+            buffPerJoin = 0;
+        } else {
+            buffPerJoin = numBuffer / numJoin;
+        }
     }
 
+    /**
+     * getter method
+     * @return number of buffers per Join operator
+     */
     public static int getBuffersPerJoin() {
         return buffPerJoin;
     }
