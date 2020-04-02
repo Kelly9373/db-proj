@@ -54,7 +54,25 @@ public class RandomOptimizer {
                     nj.setLeft(left);
                     nj.setRight(right);
                     nj.setNumBuff(numbuff);
+                    nj.setLimit(node.getLimit());
+                    nj.setOffset(node.getOffset());
                     return nj;
+                case JoinType.BLOCKNESTED:
+                    NestedJoin bnj = new NestedJoin((Join) node);
+                    bnj.setLeft(left);
+                    bnj.setRight(right);
+                    bnj.setNumBuff(numbuff);
+                    bnj.setLimit(node.getLimit());
+                    bnj.setOffset(node.getOffset());
+                    return bnj;
+                case JoinType.SORTMERGE:
+                    NestedJoin smj = new NestedJoin((Join) node);
+                    smj.setLeft(left);
+                    smj.setRight(right);
+                    smj.setNumBuff(numbuff);
+                    smj.setLimit(node.getLimit());
+                    smj.setOffset(node.getOffset());
+                    return smj;
                 default:
                     return node;
             }
